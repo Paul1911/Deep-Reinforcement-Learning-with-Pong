@@ -1,7 +1,6 @@
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 import gym
-import pylab
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Model, load_model
@@ -115,7 +114,7 @@ class PPO_Agent:
         action = np.random.choice(self.action_size, p=prediction) 
         return action, prediction
 
-    def discount_rewards(self, reward): #todo: try using a sigmoidial discount
+    def discount_rewards(self, reward): #todo: try using a sigmoidal discount
         # Compute the gamma-discounted rewards over an episode
         gamma = 0.99    # discount rate
         running_add = 0
@@ -160,26 +159,19 @@ class PPO_Agent:
         #self.Critic = load_model(Critic_name, compile=False)
 
     def save(self):
-        self.Actor.save(savestring + '_Actor.h5')
-        #self.Critic.save(self.Model_name + '_Critic.h5') # Not neccessary to save a critic unless you want to train after saving
+        self.Actor.save('Models/' + savestring + '_Actor.h5')
+        self.Critic.save('Models/' + savestring + '_Critic.h5')
 
-    # plotting the model #todo: delete function
-    pylab.figure(figsize=(18, 9))
-    def PlotModel(self, score, episode):
+    # Save model data every 10 episodes
+    def RecordData(self, score, episode):
         self.scores.append(score)
         self.episodes.append(episode)
         self.average.append(sum(self.scores[-50:]) / len(self.scores[-50:]))
-        if str(episode)[-2:] == "50":
+        if str(episode)[-1:] == "0":
             zipped = list(zip(self.episodes, self.scores, self.average))
             reward_data = pd.DataFrame(zipped, columns=['Episode', 'Score', 'Moving Average Score (n=50)'])
-
-            pylab.plot(self.episodes, self.scores, 'b')
-            pylab.plot(self.episodes, self.average, 'r')
-            pylab.ylabel('Score', fontsize=18)
-            pylab.xlabel('Steps', fontsize=18)
             try:
-                reward_data.to_csv('mean_rewards_{}.csv'.format(savestring))
-                pylab.savefig(self.path + ".png")
+                reward_data.to_csv('Results/mean_rewards_{}.csv'.format(savestring))
             except OSError:
                 pass
 
@@ -247,7 +239,7 @@ class PPO_Agent:
                 state = next_state
                 score += reward
                 if done:
-                    average = self.PlotModel(score, e)
+                    average = self.RecordData(score, e)
                     # saving best models
                     if average >= self.max_average:
                         self.max_average = average
@@ -312,7 +304,7 @@ class PPO_Agent:
 
             # Update episode count
             with self.lock:
-                average = self.PlotModel(score, self.episode)
+                average = self.RecordData(score, self.episode)
                 # saving best models
                 if average >= self.max_average:
                     self.max_average = average
@@ -360,11 +352,10 @@ if __name__ == "__main__":
         agent = PPO_Agent(env_name)
 
         t_start = str(datetime.today().strftime('%m%d_%H-%M-%S'))
-        savestring = '_'.join([t_start, str(no_threads), str(learningrate), str(lossclipping), customname])
 
         agent.multi_train(n_threads=no_threads) # use as APPO
         #agent.train() # use as PPO
-        #agent.test('0823_07-08-10_5_0.0001_0.2_Dense_512_OutcomeReliabilityComparison_2EpochsForNN0_Actor.h5', '')
+        #agent.test('Models/0823_07-08-10_5_0.0001_0.2_Dense_512_OutcomeReliabilityComparison_2EpochsForNN0_Actor.h5', '')
 
     except KeyboardInterrupt: # Make the program react to ctrl+c to stop 
         print('Interrupted')
